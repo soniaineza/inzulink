@@ -1,6 +1,6 @@
-export type Locale = "en" | "rw" | "fr"
+export type Locale = "en" | "rw" | "fr" | "sw"
 
-export const locales: Locale[] = ["en", "rw", "fr"]
+export const locales: Locale[] = ["en", "rw", "fr", "sw"]
 
 export const defaultLocale: Locale = "en"
 
@@ -8,6 +8,7 @@ export const localeNames: Record<Locale, string> = {
   en: "English",
   rw: "Kinyarwanda",
   fr: "Français",
+  sw: "Kiswahili",
 }
 
 type Translations = Record<string, string>

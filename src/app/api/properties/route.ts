@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getTokenFromRequest, verifyToken } from "@/lib/auth"
+import { PropertyStatus, PropertyType } from "@prisma/client"
 
 async function getUserId(request: Request): Promise<{ id: string; role: string } | null> {
   const token = getTokenFromRequest(request)
@@ -151,12 +152,12 @@ export async function POST(request: Request) {
     const body = await request.json()
 
     // Map frontend fields to Prisma schema
-    const propertyData: Record<string, unknown> = {
+    const propertyData = {
       title: body.title,
       description: body.description,
       price: parseInt(body.price),
-      type: (body.type || "APARTMENT").toUpperCase(),
-      status: "AVAILABLE",
+      type: (body.type || "APARTMENT").toUpperCase() as PropertyType,
+      status: PropertyStatus.AVAILABLE,
       bedrooms: parseInt(body.bedrooms) || 1,
       bathrooms: parseInt(body.bathrooms) || 1,
       area: parseInt(body.area) || 50,

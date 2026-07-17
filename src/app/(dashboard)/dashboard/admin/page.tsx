@@ -36,6 +36,7 @@ interface PendingProperty {
   landlord: string
   landlordId: string
   landlordEmail?: string
+  views: number
   isVerified: boolean
   createdAt: string
 }

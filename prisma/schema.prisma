@@ -93,6 +93,9 @@ model Property {
   availableFrom   DateTime       @default(now())
   featured        Boolean        @default(false)
   verified        Boolean        @default(false)
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  rejectionReason String?
   aiScore         Int?
   aiEstimatedPrice Int?
   views           Int            @default(0)

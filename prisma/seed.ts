@@ -8,6 +8,15 @@ if (!connectionString) {
 const adapter = new PrismaPg({ connectionString })
 const prisma = new PrismaClient({ adapter })
 
+const adminUser = {
+  email: "admin@inzulink.rw",
+  name: "Admin",
+  phone: "+250788000000",
+  password: "admin123",
+  role: "ADMIN" as const,
+  verified: true,
+}
+
 const landlords = [
   { email: "jean@inzulink.rw", name: "Jean-Pierre", phone: "+250788000001", role: "LANDLORD" as const },
   { email: "alice@inzulink.rw", name: "Alice", phone: "+250788000002", role: "LANDLORD" as const },
@@ -381,6 +390,20 @@ async function main() {
     })
   }
   console.log(`Created ${properties.length} properties`)
+
+  // Create admin user
+  await prisma.user.upsert({
+    where: { email: adminUser.email },
+    update: {},
+    create: {
+      email: adminUser.email,
+      name: adminUser.name,
+      phone: adminUser.phone,
+      password: await bcrypt.hash(adminUser.password, 12),
+      role: adminUser.role,
+      verified: adminUser.verified,
+    },
+  })
 
   const allProperties = await prisma.property.findMany({ include: { landlord: true } })
 

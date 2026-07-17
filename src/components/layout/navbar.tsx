@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useAuth } from "@/providers/auth-provider"
-import { Menu, Home, Sun, Moon, LogOut, ChevronDown, Search, Heart, LayoutDashboard, Globe } from "lucide-react"
+import { Menu, Home, Sun, Moon, LogOut, ChevronDown, Search, Heart, LayoutDashboard, Globe, Shield } from "lucide-react"
 import { useLocale } from "@/providers/locale-provider"
 
 const navLinks = [
@@ -115,9 +115,7 @@ export function Navbar() {
                   </motion.div>
                 )}
               </AnimatePresence>
-            </div>
-
-            {user ? (
+            </div>              {user ? (
               <div className="relative">
                 <button onClick={() => setUserMenuOpen(!userMenuOpen)} className="flex items-center gap-1.5 p-1.5 rounded-lg hover:bg-muted/50 transition-colors">
                   <Avatar className="h-7 w-7">
@@ -136,9 +134,19 @@ export function Navbar() {
                       className="absolute right-0 top-full mt-2 w-48 rounded-xl border bg-popover shadow-xl p-1 z-50"
                       onMouseLeave={() => setUserMenuOpen(false)}
                     >
-                      <Link href="/dashboard" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-muted transition-colors">
-                        <LayoutDashboard className="h-4 w-4 text-muted-foreground" /> {t("nav.dashboard")}
-                      </Link>
+                      {user.role === "admin" ? (
+                        <Link href="/dashboard/admin" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-muted transition-colors">
+                          <Shield className="h-4 w-4 text-muted-foreground" /> Admin Dashboard
+                        </Link>
+                      ) : user.role === "landlord" ? (
+                        <Link href="/dashboard/landlord" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-muted transition-colors">
+                          <LayoutDashboard className="h-4 w-4 text-muted-foreground" /> {t("nav.dashboard")}
+                        </Link>
+                      ) : (
+                        <Link href="/favorites" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-muted transition-colors">
+                          <Heart className="h-4 w-4 text-muted-foreground" /> {t("nav.saved")}
+                        </Link>
+                      )}
                       <Link href="/favorites" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-muted transition-colors">
                         <Heart className="h-4 w-4 text-muted-foreground" /> {t("nav.saved")}
                       </Link>

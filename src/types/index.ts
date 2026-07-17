@@ -16,6 +16,8 @@ export type PropertyType = "apartment" | "house" | "villa" | "studio" | "shared"
 
 export type PropertyStatus = "available" | "rented" | "unavailable"
 
+export type ApprovalStatus = "pending" | "approved" | "rejected"
+
 export type Property = {
   id: string
   title: string
@@ -44,6 +46,9 @@ export type Property = {
   views: number
   featured: boolean
   verified: boolean
+  reviewedBy?: string
+  reviewedAt?: Date
+  rejectionReason?: string
   aiScore?: number
   aiEstimatedPrice?: number
   landlordId: string

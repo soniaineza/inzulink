@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useState, useEffect, useMemo } from "react"
+import { Suspense, useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { PropertyCard } from "@/components/property/property-card"
@@ -9,19 +9,14 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ListSkeleton } from "@/components/ui/skeleton"
-import { FEATURED_PROPERTIES, LOCATIONS, PROPERTY_TYPES, BEDROOM_OPTIONS, BATHROOM_OPTIONS, SORT_OPTIONS, AMENITIES } from "@/lib/constants"
+import { LOCATIONS, PROPERTY_TYPES, BEDROOM_OPTIONS, BATHROOM_OPTIONS, SORT_OPTIONS, AMENITIES } from "@/lib/constants"
 import { formatPrice } from "@/lib/utils"
 import {
   Search,
   SlidersHorizontal,
-  MapPin,
   X,
-  ChevronDown,
   Grid3X3,
   List,
-  Bed,
-  Bath,
-  Home,
   SearchX,
 } from "lucide-react"
 import { useLocale } from "@/providers/locale-provider"
@@ -33,7 +28,11 @@ function SearchPageInner() {
   const [query, setQuery] = useState(searchParams.get("q") || "")
   const [showFilters, setShowFilters] = useState(false)
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [properties, setProperties] = useState<any[]>([])
+  const [total, setTotal] = useState(0)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const [filters, setFilters] = useState({
     type: searchParams.get("type") || "",
     minPrice: searchParams.get("minPrice") || "",
@@ -63,78 +62,45 @@ function SearchPageInner() {
     })
   }, [searchParams])
 
-  const filteredProperties = useMemo(() => {
-    let results = [...FEATURED_PROPERTIES]
-
-    if (query.trim()) {
-      const q = query.toLowerCase().trim()
-      results = results.filter(
-        (p) =>
-          p.title.toLowerCase().includes(q) ||
-          p.location.toLowerCase().includes(q) ||
-          p.type.toLowerCase().includes(q) ||
-          p.landlord.toLowerCase().includes(q)
-      )
-    }
-
-    if (filters.type) {
-      results = results.filter((p) => p.type.toLowerCase() === filters.type.toLowerCase())
-    }
-
-    if (filters.district) {
-      results = results.filter((p) => p.location.toLowerCase().includes(filters.district.toLowerCase()))
-    }
-
-    if (filters.sector) {
-      results = results.filter((p) => p.location.toLowerCase().includes(filters.sector.toLowerCase()))
-    }
-
-    if (filters.minPrice) {
-      results = results.filter((p) => p.price >= Number(filters.minPrice))
-    }
-
-    if (filters.maxPrice) {
-      results = results.filter((p) => p.price <= Number(filters.maxPrice))
-    }
-
-    if (filters.bedrooms) {
-      const min = Number(filters.bedrooms)
-      results = results.filter((p) => p.bedrooms >= min)
-    }
-
-    if (filters.bathrooms) {
-      const min = Number(filters.bathrooms)
-      results = results.filter((p) => p.bathrooms >= min)
-    }
-
-    if (filters.furnished) {
-      results = results.filter((p) => p.hasInternet || p.hasParking)
-    }
-
-    if (filters.amenities.length > 0) {
-      results = results.filter((p) => {
-        if (filters.amenities.includes("wifi") && !p.hasInternet) return false
-        if (filters.amenities.includes("parking") && !p.hasParking) return false
-        return true
-      })
-    }
-
-    switch (filters.sort) {
-      case "price_asc":
-        results.sort((a, b) => a.price - b.price)
-        break
-      case "price_desc":
-        results.sort((a, b) => b.price - a.price)
-        break
-      case "popular":
-        results.sort((a, b) => (b.reviews || 0) - (a.reviews || 0))
-        break
-      default:
-        results.sort((a, b) => Number(b.isFeatured) - Number(a.isFeatured))
-    }
-
-    return results
+  const buildQueryString = useCallback(() => {
+    const params = new URLSearchParams()
+    if (query.trim()) params.set("q", query.trim())
+    if (filters.type) params.set("type", filters.type)
+    if (filters.minPrice) params.set("minPrice", filters.minPrice)
+    if (filters.maxPrice) params.set("maxPrice", filters.maxPrice)
+    if (filters.bedrooms) params.set("bedrooms", filters.bedrooms)
+    if (filters.bathrooms) params.set("bathrooms", filters.bathrooms)
+    if (filters.district) params.set("district", filters.district)
+    if (filters.sector) params.set("sector", filters.sector)
+    if (filters.furnished) params.set("furnished", "true")
+    if (filters.sort && filters.sort !== "newest") params.set("sort", filters.sort)
+    filters.amenities.forEach((a) => params.append("amenity", a))
+    return params.toString()
   }, [query, filters])
+
+  const fetchProperties = useCallback(async (q: string) => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/properties?${q}`)
+      const data = await res.json()
+      if (data.data) {
+        setProperties(data.data)
+        setTotal(data.pagination?.total ?? data.data.length)
+      }
+    } catch {
+      setProperties([])
+      setTotal(0)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    const qs = buildQueryString()
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => fetchProperties(qs), 300)
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [buildQueryString, fetchProperties])
 
   const clearFilters = () => {
     setFilters({
@@ -165,7 +131,7 @@ function SearchPageInner() {
         >
           <h1 className="text-3xl font-bold tracking-tight mb-2">{t("search.title")}</h1>
           <p className="text-muted-foreground">
-            {filteredProperties.length} {t("search.subtitle")}
+            {loading ? "..." : `${total} ${t("search.subtitle")}`}
           </p>
         </motion.div>
 
@@ -436,7 +402,7 @@ function SearchPageInner() {
             <AnimatePresence mode="wait">
               {loading ? (
                 <ListSkeleton />
-              ) : filteredProperties.length === 0 ? (
+              ) : properties.length === 0 ? (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -464,17 +430,17 @@ function SearchPageInner() {
                       : "space-y-4"
                   }
                 >
-                  {filteredProperties.map((property, index) => (
-                    <PropertyCard key={property.id} {...property} index={index} />
+                  {properties.map((property, index) => (
+                    <PropertyCard key={property.id as string} {...(property as any)} index={index} />
                   ))}
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {filteredProperties.length > 0 && (
+            {properties.length > 0 && (
               <div className="mt-12 text-center">
                 <p className="text-sm text-muted-foreground mb-4">
-                  {t("search.showing")} {filteredProperties.length} {t("search.subtitle")}
+                  {t("search.showing")} {total} {t("search.subtitle")}
                 </p>
               </div>
             )}

@@ -3,14 +3,46 @@
 import { motion } from "framer-motion"
 import { PropertyCard } from "@/components/property/property-card"
 import { Button } from "@/components/ui/button"
-import { useFavoritesStore } from "@/store/use-favorites"
-import { FEATURED_PROPERTIES } from "@/lib/constants"
+import { ListSkeleton } from "@/components/ui/skeleton"
+import { useAuth } from "@/providers/auth-provider"
+import { useEffect, useState } from "react"
 import { Heart, Search, ArrowRight } from "lucide-react"
 import Link from "next/link"
 
 export default function FavoritesPage() {
-  const { favorites } = useFavoritesStore()
-  const favoriteProperties = FEATURED_PROPERTIES.filter((p) => favorites.includes(p.id))
+  const { user, loading: authLoading } = useAuth()
+  const [properties, setProperties] = useState<Array<Record<string, unknown>>>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!user) {
+      setProperties([])
+      setLoading(false)
+      return
+    }
+    async function fetchFavorites() {
+      try {
+        const res = await fetch("/api/favorites")
+        const data = await res.json()
+        if (data.data) setProperties(data.data)
+      } catch {
+        setProperties([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchFavorites()
+  }, [user])
+
+  if (authLoading || loading) {
+    return (
+      <div className="pt-20 min-h-screen">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+          <ListSkeleton />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="pt-20 min-h-screen">
@@ -25,14 +57,14 @@ export default function FavoritesPage() {
             Saved Properties
           </h1>
           <p className="text-muted-foreground mt-1">
-            {favoriteProperties.length} saved {favoriteProperties.length === 1 ? "property" : "properties"}
+            {properties.length} saved {properties.length === 1 ? "property" : "properties"}
           </p>
         </motion.div>
 
-        {favoriteProperties.length > 0 ? (
+        {properties.length > 0 ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {favoriteProperties.map((property, index) => (
-              <PropertyCard key={property.id} {...property} index={index} />
+            {properties.map((property, index) => (
+              <PropertyCard key={property.id as string} {...(property as any)} index={index} />
             ))}
           </div>
         ) : (

@@ -1,95 +1,93 @@
 "use client"
 
-import { createContext, useContext, useCallback, useState, useSyncExternalStore } from "react"
-import type { User } from "@/types"
+import { createContext, useContext, useEffect, useState, ReactNode } from "react"
+
+interface User {
+  id: string
+  email: string
+  name: string
+  role: "tenant" | "landlord" | "admin"
+  verified: boolean
+  image?: string
+  phone?: string
+}
 
 interface AuthContextType {
   user: User | null
   loading: boolean
-  login: (email: string, password: string) => Promise<void>
-  register: (data: Partial<User> & { password: string }) => Promise<void>
-  logout: () => void
-  isLandlord: boolean
-  isAdmin: boolean
+  login: (data: { email: string; password: string }) => Promise<{ success: boolean; error?: string }>
+  register: (data: { email: string; name: string; password: string; role?: string }) => Promise<{ success: boolean; error?: string }>
+  logout: () => Promise<void>
+  refresh: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-function getSnapshot(): string | null {
-  if (typeof window === "undefined") return null
-  return localStorage.getItem("inzulink_user")
-}
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
 
-function subscribe(callback: () => void) {
-  window.addEventListener("storage", callback)
-  return () => window.removeEventListener("storage", callback)
-}
-
-function parseUser(stored: string | null): User | null {
-  if (!stored) return null
-  try {
-    return JSON.parse(stored)
-  } catch {
-    return null
+  const refresh = async () => {
+    try {
+      const res = await fetch("/api/auth/me")
+      const data = await res.json()
+      setUser(data.user)
+    } catch {
+      setUser(null)
+    } finally {
+      setLoading(false)
+    }
   }
-}
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const stored = useSyncExternalStore(subscribe, getSnapshot, () => null)
-  const user = parseUser(stored)
-  const [loading, setLoading] = useState(!stored)
+  useEffect(() => {
+    refresh()
+  }, [])
 
-  const login = useCallback(async (email: string, _password: string) => {
-    setLoading(true)
-    await new Promise((r) => setTimeout(r, 500))
-    const mockUser: User = {
-      id: "user_1",
-      email,
-      name: email.split("@")[0],
-      role: email.includes("landlord") ? "landlord" : email.includes("admin") ? "admin" : "tenant",
-      verified: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+  const login = async (data: { email: string; password: string }) => {
+    try {
+      const res: Response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      const result = await res.json()
+      if (result.success) {
+        setUser(result.user)
+        return { success: true }
+      }
+      return { success: false, error: result.error }
+    } catch {
+      return { success: false, error: "Network error" }
     }
-    localStorage.setItem("inzulink_user", JSON.stringify(mockUser))
-    window.dispatchEvent(new Event("storage"))
-    setLoading(false)
-  }, [])
+  }
 
-  const register = useCallback(async (data: Partial<User> & { password: string }) => {
-    setLoading(true)
-    await new Promise((r) => setTimeout(r, 500))
-    const mockUser: User = {
-      id: "user_" + Date.now(),
-      email: data.email || "",
-      name: data.name || "",
-      role: data.role || "tenant",
-      verified: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+  const register = async (data: { email: string; name: string; password: string; role?: string }) => {
+    try {
+      const res: Response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      const result = await res.json()
+      if (result.success) {
+        setUser(result.user)
+        return { success: true }
+      }
+      return { success: false, error: result.error }
+    } catch {
+      return { success: false, error: "Network error" }
     }
-    localStorage.setItem("inzulink_user", JSON.stringify(mockUser))
-    window.dispatchEvent(new Event("storage"))
-    setLoading(false)
-  }, [])
+  }
 
-  const logout = useCallback(() => {
-    localStorage.removeItem("inzulink_user")
-    window.dispatchEvent(new Event("storage"))
-  }, [])
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+    } catch {}
+    setUser(null)
+  }
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        login,
-        register,
-        logout,
-        isLandlord: user?.role === "landlord",
-        isAdmin: user?.role === "admin",
-      }}
-    >
+    <AuthContext.Provider value={{ user, loading, login, register, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   )
@@ -97,8 +95,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider")
-  }
+  if (!context) throw new Error("useAuth must be used within AuthProvider")
   return context
 }

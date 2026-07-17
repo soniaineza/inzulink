@@ -23,7 +23,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    await login(email, password)
+    await login({ email, password })
     setLoading(false)
     router.push("/")
   }

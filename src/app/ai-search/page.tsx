@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { PropertyCard } from "@/components/property/property-card"
-import { FEATURED_PROPERTIES } from "@/lib/constants"
 import {
   Sparkles,
   Send,
@@ -29,17 +28,11 @@ const suggestions = [
   "Affordable 1-bedroom near university in Nyamirambo",
 ]
 
-const searchResults = [
-  {
-    query: "2-bedroom apartment in Kimironko under 400,000 RWF",
-    results: FEATURED_PROPERTIES.slice(0, 3),
-  },
-]
-
 export default function AISearchPage() {
   const { t } = useLocale()
   const [query, setQuery] = useState("")
   const [messages, setMessages] = useState<Array<{ role: "user" | "ai"; content: string }>>([])
+  const [results, setResults] = useState<Array<Record<string, unknown>>>([])
   const [isSearching, setIsSearching] = useState(false)
   const [showResults, setShowResults] = useState(false)
 
@@ -47,16 +40,31 @@ export default function AISearchPage() {
     if (!query.trim()) return
     setMessages((prev) => [...prev, { role: "user", content: query }])
     setIsSearching(true)
-    await new Promise((r) => setTimeout(r, 1500))
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "ai",
-        content:
-          "I found several properties matching your description. Here are the best options based on your preferences for location, budget, and size.",
-      },
-    ])
-    setShowResults(true)
+    setShowResults(false)
+
+    try {
+      const params = new URLSearchParams({ q: query.trim(), limit: "3", sort: "popular" })
+      const res = await fetch(`/api/properties?${params}`)
+      const data = await res.json()
+      const found = data.data || []
+
+      setResults(found)
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          content: found.length > 0
+            ? `I found ${found.length} properties matching your description. Here are the best options based on your preferences for location, budget, and size.`
+            : "I couldn't find any properties matching your description. Try broadening your search criteria.",
+        },
+      ])
+      if (found.length > 0) setShowResults(true)
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { role: "ai", content: "Sorry, I encountered an error while searching. Please try again." },
+      ])
+    }
     setIsSearching(false)
   }
 
@@ -105,9 +113,7 @@ export default function AISearchPage() {
             {suggestions.map((suggestion) => (
               <button
                 key={suggestion}
-                onClick={() => {
-                  setQuery(suggestion)
-                }}
+                onClick={() => setQuery(suggestion)}
                 className="px-3 py-1.5 rounded-xl bg-muted text-xs text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all border"
               >
                 {suggestion}
@@ -181,15 +187,15 @@ export default function AISearchPage() {
                 <div>
                   <h2 className="font-semibold">AI Recommendations</h2>
                   <p className="text-xs text-muted-foreground">
-                    Matched 3 properties based on your description
+                    Matched {results.length} {results.length === 1 ? "property" : "properties"} based on your description
                   </p>
                 </div>
               </div>
 
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {FEATURED_PROPERTIES.slice(0, 3).map((property, index) => (
-                  <div key={property.id} className="relative">
-                    <PropertyCard {...property} index={index} />
+                {results.map((property, index) => (
+                  <div key={property.id as string} className="relative">
+                    <PropertyCard {...(property as any)} index={index} />
                     <div className="absolute -top-2 -right-2">
                       <Badge variant="default" className="gap-1 shadow-lg">
                         <Star className="h-3 w-3 fill-current" />
@@ -198,23 +204,6 @@ export default function AISearchPage() {
                     </div>
                   </div>
                 ))}
-              </div>
-
-              <div className="mt-8 p-6 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border border-amber-200/50 dark:border-amber-800/30">
-                <div className="flex items-start gap-4">
-                  <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shrink-0 shadow-lg">
-                    <Bot className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-1">AI Analysis</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Based on your search for a 2-bedroom apartment in Kimironko under 400,000 RWF,
-                      the average market price is 380,000 RWF. The recommended properties offer the best
-                      value with parking and WiFi included. Consider expanding your search to nearby
-                      Remera for additional options.
-                    </p>
-                  </div>
-                </div>
               </div>
             </motion.div>
           )}

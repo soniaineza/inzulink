@@ -6,15 +6,15 @@ import { cn } from "@/lib/utils"
 import { Bed, Bath, Car, Wallet, Users, Wifi, ShieldCheck, CalendarCheck } from "lucide-react"
 import { useLocale } from "@/providers/locale-provider"
 
-const filterKeys = [
-  { id: "bedrooms", key: "qf.bedrooms", icon: Bed },
-  { id: "bathrooms", key: "qf.bathrooms", icon: Bath },
-  { id: "parking", key: "qf.parking", icon: Car },
-  { id: "budget", key: "qf.budget", icon: Wallet },
-  { id: "family", key: "qf.family", icon: Users },
-  { id: "wifi", key: "qf.wifi", icon: Wifi },
-  { id: "verified", key: "qf.verified", icon: ShieldCheck },
-  { id: "available", key: "qf.availableNow", icon: CalendarCheck },
+const filterKeys: { id: string; key: string; icon: React.ElementType; href: string }[] = [
+  { id: "bedrooms", key: "qf.bedrooms", icon: Bed, href: "/search?bedrooms=1" },
+  { id: "bathrooms", key: "qf.bathrooms", icon: Bath, href: "/search?bathrooms=1" },
+  { id: "parking", key: "qf.parking", icon: Car, href: "/search?amenities=parking" },
+  { id: "budget", key: "qf.budget", icon: Wallet, href: "/search?maxPrice=200000" },
+  { id: "family", key: "qf.family", icon: Users, href: "/search?amenities=family-friendly" },
+  { id: "wifi", key: "qf.wifi", icon: Wifi, href: "/search?amenities=wifi" },
+  { id: "verified", key: "qf.verified", icon: ShieldCheck, href: "/search" },
+  { id: "available", key: "qf.availableNow", icon: CalendarCheck, href: "/search" },
 ]
 
 export function QuickFilters() {
@@ -24,7 +24,7 @@ export function QuickFilters() {
   return (
     <section className="py-5 -mt-7 relative z-10">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="bg-white dark:bg-card rounded-xl shadow-lg border p-1.5 overflow-x-auto scrollbar-hide">
+        <div className="neo-sm p-1.5 overflow-x-auto scrollbar-hide">
           <div className="flex gap-1 min-w-max">
             {filterKeys.map((filter) => {
               const Icon = filter.icon
@@ -32,7 +32,7 @@ export function QuickFilters() {
               return (
                 <Link
                   key={filter.id}
-                  href={`/search?amenity=${filter.id}`}
+                  href={filter.href}
                   onClick={() => setActiveFilter(isActive ? null : filter.id)}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap",

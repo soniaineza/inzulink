@@ -20,6 +20,16 @@ export async function GET(request: Request) {
 
   try {
     if (conversationId) {
+      const conversation = await prisma.conversation.findUnique({
+        where: { id: conversationId },
+        select: { participants: true },
+      })
+      if (!conversation) {
+        return NextResponse.json({ error: "Conversation not found" }, { status: 404 })
+      }
+      if (!conversation.participants.includes(userId)) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
+      }
       const messages = await prisma.message.findMany({
         where: { conversationId },
         include: {
@@ -70,26 +80,52 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { conversationId, content } = await request.json()
+    const { conversationId, content, receiverId, propertyId } = await request.json()
 
-    if (!conversationId || !content) {
-      return NextResponse.json({ error: "conversationId and content are required" }, { status: 400 })
+    let convId = conversationId
+
+    if (!convId) {
+      if (!receiverId || !propertyId || !content) {
+        return NextResponse.json({ error: "receiverId, propertyId, and content are required to start a conversation" }, { status: 400 })
+      }
+
+      const existing = await prisma.conversation.findFirst({
+        where: {
+          propertyId,
+          participants: { hasEvery: [userId, receiverId] },
+        },
+      })
+
+      if (existing) {
+        convId = existing.id
+      } else {
+        const conversation = await prisma.conversation.create({
+          data: {
+            propertyId,
+            participants: [userId, receiverId],
+          },
+        })
+        convId = conversation.id
+      }
+    } else if (!content) {
+      return NextResponse.json({ error: "content is required" }, { status: 400 })
     }
 
     const message = await prisma.message.create({
-      data: { conversationId, senderId: userId, content },
+      data: { conversationId: convId, senderId: userId, content: content || "" },
       include: {
         sender: { select: { id: true, name: true, image: true } },
       },
     })
 
     await prisma.conversation.update({
-      where: { id: conversationId },
-      data: { lastMessage: content, lastMessageAt: new Date() },
+      where: { id: convId },
+      data: { lastMessage: content || message.content, lastMessageAt: new Date() },
     })
 
-    return NextResponse.json({ success: true, message }, { status: 201 })
-  } catch {
+    return NextResponse.json({ success: true, message, conversationId: convId }, { status: 201 })
+  } catch (error) {
+    console.error("Message create error:", error)
     return NextResponse.json({ error: "Invalid request" }, { status: 400 })
   }
 }

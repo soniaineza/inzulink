@@ -41,7 +41,7 @@ export function Navbar() {
   }
 
   return (
-    <header className={cn("fixed top-0 left-0 right-0 z-50 transition-all duration-300", scrolled ? "bg-white/95 dark:bg-[#0a0e1a]/95 backdrop-blur-2xl shadow-sm" : "bg-transparent")}>
+    <header className={cn("fixed top-0 left-0 right-0 z-50 transition-all duration-500", scrolled ? "glass-dark shadow-sm" : "bg-transparent")}>
       <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -142,11 +142,7 @@ export function Navbar() {
                         <Link href="/dashboard/landlord" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-muted transition-colors">
                           <LayoutDashboard className="h-4 w-4 text-muted-foreground" /> {t("nav.dashboard")}
                         </Link>
-                      ) : (
-                        <Link href="/favorites" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-muted transition-colors">
-                          <Heart className="h-4 w-4 text-muted-foreground" /> {t("nav.saved")}
-                        </Link>
-                      )}
+                      ) : null}
                       <Link href="/favorites" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-muted transition-colors">
                         <Heart className="h-4 w-4 text-muted-foreground" /> {t("nav.saved")}
                       </Link>

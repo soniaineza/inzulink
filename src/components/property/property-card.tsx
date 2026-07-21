@@ -58,7 +58,7 @@ export function PropertyCard({
       viewport={{ once: true, margin: "-30px" }}
       transition={{ duration: 0.4, delay: index * 0.06 }}
     >
-      <div className="group rounded-xl overflow-hidden bg-card border shadow-card hover:shadow-card-hover transition-all duration-300">
+      <div className="group rounded-2xl overflow-hidden bg-card border border-border/50 shadow-card hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 hover:border-primary/20 transition-all duration-500">
         <Link href={`/property/${id}`}>
           <div className="relative aspect-[16/11] overflow-hidden">
             <img src={image} alt={title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />

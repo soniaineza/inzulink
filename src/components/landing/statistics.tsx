@@ -12,8 +12,9 @@ function AnimatedCounter({ value, suffix, label, icon: Icon }: { value: number; 
 
   useEffect(() => {
     if (!isInView) return
+    if (value <= 0) { setCount(0); return }
     let start = 0
-    const step = Math.ceil(value / 125)
+    const step = Math.max(1, Math.ceil(value / 125))
     const timer = setInterval(() => {
       start += step
       if (start >= value) { setCount(value); clearInterval(timer) }

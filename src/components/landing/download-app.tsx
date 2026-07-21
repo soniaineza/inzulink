@@ -4,6 +4,7 @@ import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Smartphone, Apple, Download, Sparkles } from "lucide-react"
 import { useLocale } from "@/providers/locale-provider"
+import { SITE_CONFIG } from "@/lib/constants"
 
 export function DownloadApp() {
   const { t } = useLocale()
@@ -23,20 +24,24 @@ export function DownloadApp() {
               <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">{t("app.title")}</h2>
               <p className="mt-2 text-white/70 text-sm max-w-md leading-relaxed">{t("app.subtitle")}</p>
               <div className="mt-5 flex flex-col sm:flex-row gap-2.5">
-                <Button className="gap-2.5 rounded-xl h-11 px-5 bg-white text-primary hover:bg-white/90 shadow-lg text-sm">
-                  <Apple className="h-5 w-5" />
-                  <div className="text-left">
-                    <div className="text-[9px] opacity-70 font-normal">{t("app.downloadOn")}</div>
-                    <div className="text-sm font-semibold -mt-0.5">{t("app.appStore")}</div>
-                  </div>
-                </Button>
-                <Button variant="outline" className="gap-2.5 rounded-xl h-11 px-5 border-white/30 text-white hover:bg-white/10 text-sm">
-                  <Download className="h-5 w-5" />
-                  <div className="text-left">
-                    <div className="text-[9px] opacity-70 font-normal">{t("app.getItOn")}</div>
-                    <div className="text-sm font-semibold -mt-0.5">{t("app.googlePlay")}</div>
-                  </div>
-                </Button>
+                <a href={SITE_CONFIG.appStoreUrl} target="_blank" rel="noopener noreferrer">
+                  <Button className="gap-2.5 rounded-xl h-11 px-5 bg-white text-primary hover:bg-white/90 shadow-lg text-sm">
+                    <Apple className="h-5 w-5" />
+                    <div className="text-left">
+                      <div className="text-[9px] opacity-70 font-normal">{t("app.downloadOn")}</div>
+                      <div className="text-sm font-semibold -mt-0.5">{t("app.appStore")}</div>
+                    </div>
+                  </Button>
+                </a>
+                <a href={SITE_CONFIG.googlePlayUrl} target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" className="gap-2.5 rounded-xl h-11 px-5 border-white/30 text-white hover:bg-white/10 text-sm">
+                    <Download className="h-5 w-5" />
+                    <div className="text-left">
+                      <div className="text-[9px] opacity-70 font-normal">{t("app.getItOn")}</div>
+                      <div className="text-sm font-semibold -mt-0.5">{t("app.googlePlay")}</div>
+                    </div>
+                  </Button>
+                </a>
               </div>
               <div className="flex items-center gap-1.5 mt-3 text-white/50 text-xs">
                 <div className="flex">{[1, 2, 3, 4, 5].map((i) => (<Sparkles key={i} className="h-3 w-3 text-white/80" />))}</div>

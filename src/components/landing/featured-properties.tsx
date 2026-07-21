@@ -57,7 +57,7 @@ export function FeaturedProperties() {
                 viewport={{ once: true, margin: "-30px" }}
                 transition={{ duration: 0.35, delay: index * 0.05 }}
               >
-                <Link href={`/property/${property.id}`} className="group block rounded-xl overflow-hidden bg-card border shadow-card hover:shadow-card-hover transition-all duration-300">
+                <Link href={`/property/${property.id}`} className="group block rounded-2xl overflow-hidden bg-card border border-border/50 shadow-card hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 hover:border-primary/20 transition-all duration-500">
                   <div className="relative aspect-[16/11] overflow-hidden">
                     <img src={property.image as string} alt={property.title as string} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />

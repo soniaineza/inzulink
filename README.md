@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# InzuLink Rwanda
+
+Rwanda's premium property rental platform connecting landlords directly with tenants. No brokers, no commissions.
+
+## Tech Stack
+
+- **Framework**: Next.js 15 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS v4
+- **UI**: Radix UI Primitives + shadcn/ui patterns
+- **Animations**: Framer Motion
+- **ORM**: Prisma (PostgreSQL)
+- **State**: Zustand (client), Context API (auth/locale)
+- **Auth**: JWT with bcrypt
+- **i18n**: 4 languages (English, Kinyarwanda, French, Kiswahili)
+- **Toasts**: Sonner
+- **Icons**: Lucide React
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.local.example .env.local
+# Edit .env.local with your database URL and JWT secret
+
+# Generate Prisma client
+npx prisma generate
+
+# Push schema to database
+npx prisma db push
+
+# Seed the database
+npx prisma db seed
+
+# Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Seed Data
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The seed script creates:
+- 1 admin user (admin@inzulink.rw / admin123)
+- 12 landlord users (e.g. jean@inzulink.rw / landlord123)
+- 12 properties across Rwanda
+- 4 reviews
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+  app/          # Pages and API routes
+  components/   # UI, layout, landing, property components
+  lib/          # Utilities, auth, prisma client, constants
+  providers/    # Auth, theme, locale providers
+  store/        # Zustand stores (favorites, compare)
+  types/        # TypeScript type definitions
+  i18n/         # Translations (en, rw, fr, sw)
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Features
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Property search with advanced filters
+- AI-powered natural language search
+- Landlord dashboard with property management
+- Admin dashboard for property approval
+- Favorites and property comparison
+- Direct messaging between tenants and landlords
+- Multi-language support
+- Dark mode
+- Responsive design
 
-## Deploy on Vercel
+## Scripts
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run start` - Start production server
+- `npm run lint` - Run ESLint
+- `npx prisma generate` - Generate Prisma client
+- `npx prisma db push` - Push schema to database
+- `npx prisma db seed` - Seed the database
+- `npx prisma studio` - Open Prisma Studio

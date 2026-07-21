@@ -32,6 +32,13 @@ const footerSections = [
   ]},
 ]
 
+const socialLinks = [
+  { label: "X", href: "https://x.com/inzulink" },
+  { label: "Li", href: "https://linkedin.com/company/inzulink" },
+  { label: "Ig", href: "https://instagram.com/inzulink" },
+  { label: "Fb", href: "https://facebook.com/inzulink" },
+]
+
 export function Footer() {
   const [email, setEmail] = useState("")
   const { t } = useLocale()
@@ -56,9 +63,9 @@ export function Footer() {
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-sm mb-4">{t("footer.tagline")}</p>
             <div className="flex gap-2">
-              {["X", "Li", "Ig", "Fb"].map((s) => (
-                <a key={s} href="#" className="h-8 w-8 rounded-lg border flex items-center justify-center text-xs text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors">
-                  {s}
+              {socialLinks.map((s) => (
+                <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" className="h-8 w-8 rounded-lg border flex items-center justify-center text-xs text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors">
+                  {s.label}
                 </a>
               ))}
             </div>

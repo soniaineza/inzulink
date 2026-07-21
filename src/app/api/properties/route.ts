@@ -22,6 +22,7 @@ export async function GET(request: Request) {
   const bedrooms = searchParams.get("bedrooms")
   const bathrooms = searchParams.get("bathrooms")
   const furnished = searchParams.get("furnished")
+  const amenities = searchParams.get("amenities")
   const sort = searchParams.get("sort") || "newest"
   const page = parseInt(searchParams.get("page") || "1")
   const limit = Math.min(parseInt(searchParams.get("limit") || "12"), 50)
@@ -35,9 +36,9 @@ export async function GET(request: Request) {
   if (landlordId) {
     where.landlordId = landlordId
     // Optionally filter by verification status
-    if (status === "pending") where.verified = false
+    if (status === "pending") { where.verified = false; where.rejectionReason = null }
     else if (status === "approved") where.verified = true
-    else if (status === "rejected") where.verified = false
+    else if (status === "rejected") { where.verified = false; where.rejectionReason = { not: null } }
     // Don't filter out unverified for landlord's own view
   } else {
     // Public API - only show verified and available
@@ -53,19 +54,24 @@ export async function GET(request: Request) {
       { sector: { contains: q, mode: "insensitive" } },
     ]
   }
-  if (district) where.district = { equals: district, mode: "insensitive" }
-  if (sector) where.sector = { equals: sector, mode: "insensitive" }
+  if (district) where.district = { contains: district, mode: "insensitive" }
+  if (sector) where.sector = { contains: sector, mode: "insensitive" }
   if (type) where.type = type.toUpperCase()
-  if (minPrice) where.price = { ...(where.price as object || {}), gte: parseInt(minPrice) }
-  if (maxPrice) where.price = { ...(where.price as object || {}), lte: parseInt(maxPrice) }
+  if (minPrice) { const v = parseInt(minPrice); if (!isNaN(v)) where.price = { ...(where.price as object || {}), gte: v } }
+  if (maxPrice) { const v = parseInt(maxPrice); if (!isNaN(v)) where.price = { ...(where.price as object || {}), lte: v } }
   if (bedrooms) where.bedrooms = { gte: parseInt(bedrooms) }
   if (bathrooms) where.bathrooms = { gte: parseInt(bathrooms) }
   if (furnished === "true") where.furnished = true
+  if (amenities) {
+    const amenityList = amenities.split(",").map(a => a.trim().toLowerCase())
+    where.AND = amenityList.map(a => ({ amenities: { has: a } }))
+  }
 
   let orderBy: Record<string, string> = { createdAt: "desc" }
   if (sort === "price_asc") orderBy = { price: "asc" }
   else if (sort === "price_desc") orderBy = { price: "desc" }
   else if (sort === "popular") orderBy = { views: "desc" }
+  else if (sort === "oldest") orderBy = { createdAt: "asc" }
 
   try {
     const [properties, total] = await Promise.all([
@@ -155,7 +161,7 @@ export async function POST(request: Request) {
     const propertyData = {
       title: body.title,
       description: body.description,
-      price: parseInt(body.price),
+      price: parseInt(body.price) || 0,
       type: (body.type || "APARTMENT").toUpperCase() as PropertyType,
       status: PropertyStatus.AVAILABLE,
       bedrooms: parseInt(body.bedrooms) || 1,

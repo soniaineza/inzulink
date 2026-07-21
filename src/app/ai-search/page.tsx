@@ -199,7 +199,7 @@ export default function AISearchPage() {
                     <div className="absolute -top-2 -right-2">
                       <Badge variant="default" className="gap-1 shadow-lg">
                         <Star className="h-3 w-3 fill-current" />
-                        AI Match {100 - index * 5}%
+                        {`AI Match ${property.aiScore || 50}%`}
                       </Badge>
                     </div>
                   </div>

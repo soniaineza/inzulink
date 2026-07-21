@@ -1,59 +1,132 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { motion } from "framer-motion"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { formatRelativeTime } from "@/lib/utils"
-import { Search, Send, Phone, Video, MoreHorizontal, ChevronLeft } from "lucide-react"
+import { useAuth } from "@/providers/auth-provider"
+import { toast } from "sonner"
+import { Search, Send, Loader2, MessageCircle, ChevronLeft } from "lucide-react"
 
-const conversations = [
-  {
-    id: "1",
-    name: "Jean-Pierre",
-    avatar: "",
-    lastMessage: "The apartment is still available. Would you like to schedule a viewing?",
-    time: new Date(Date.now() - 1000 * 60 * 5),
-    unread: 2,
-    online: true,
-    property: "Modern 2-Bedroom in Kimironko",
-  },
-  {
-    id: "2",
-    name: "Alice Mukamana",
-    avatar: "",
-    lastMessage: "Perfect, I'll be there at 10am tomorrow. Thank you!",
-    time: new Date(Date.now() - 1000 * 60 * 60 * 2),
-    unread: 0,
-    online: false,
-    property: "Cozy Studio Near Kacyiru",
-  },
-  {
-    id: "3",
-    name: "Grace Uwimana",
-    avatar: "",
-    lastMessage: "Is the property still available for rent?",
-    time: new Date(Date.now() - 1000 * 60 * 60 * 24),
-    unread: 0,
-    online: true,
-    property: "Spacious 4-Bedroom in Remera",
-  },
-]
+interface Conversation {
+  id: string
+  propertyId: string | null
+  propertyTitle: string | null
+  propertyImage: string | null
+  participants: string[]
+  lastMessage: {
+    id: string
+    content: string
+    sender: { id: string; name: string; image: string | null }
+    createdAt: string
+  } | null
+  updatedAt: string
+}
 
-const messages = [
-  { id: "1", senderId: "1", content: "Hello! I'm interested in your property.", time: new Date(Date.now() - 1000 * 60 * 30) },
-  { id: "2", senderId: "me", content: "Hi! Yes, it's still available. Would you like to schedule a viewing?", time: new Date(Date.now() - 1000 * 60 * 25) },
-  { id: "3", senderId: "1", content: "That would be great. Is Saturday at 2pm possible?", time: new Date(Date.now() - 1000 * 60 * 20) },
-  { id: "4", senderId: "me", content: "Saturday at 2pm works perfectly. I'll send you the address.", time: new Date(Date.now() - 1000 * 60 * 15) },
-  { id: "5", senderId: "1", content: "The apartment is still available. Would you like to schedule a viewing?", time: new Date(Date.now() - 1000 * 60 * 5) },
-]
+interface Message {
+  id: string
+  content: string
+  senderId: string
+  sender: { id: string; name: string; image: string | null }
+  createdAt: string
+}
 
 export default function ChatPage() {
-  const [selectedChat, setSelectedChat] = useState(conversations[0])
-  const [message, setMessage] = useState("")
+  const { user } = useAuth()
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [selectedConvId, setSelectedConvId] = useState<string | null>(null)
+  const [messages, setMessages] = useState<Message[]>([])
+  const [messageText, setMessageText] = useState("")
+  const [loading, setLoading] = useState(true)
+  const [sending, setSending] = useState(false)
   const [showMobileList, setShowMobileList] = useState(true)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const fetchConversations = async () => {
+    try {
+      const res = await fetch("/api/messages")
+      const data = await res.json()
+      setConversations(data.data || [])
+    } catch {
+      setConversations([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchMessages = async (convId: string) => {
+    try {
+      const res = await fetch(`/api/messages?conversationId=${convId}`)
+      const data = await res.json()
+      setMessages(data.data || [])
+    } catch {
+      setMessages([])
+    }
+  }
+
+  useEffect(() => {
+    if (user) fetchConversations()
+    else setLoading(false)
+  }, [user])
+
+  useEffect(() => {
+    if (selectedConvId) {
+      fetchMessages(selectedConvId)
+    }
+  }, [selectedConvId])
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
+
+  const selectedConv = conversations.find((c) => c.id === selectedConvId)
+  const otherParticipantId = selectedConv?.participants.find((p) => p !== user?.id)
+  const otherParticipantName = otherParticipantId
+    ? selectedConv?.lastMessage?.sender.id === otherParticipantId
+      ? selectedConv?.lastMessage?.sender.name
+      : otherParticipantId === selectedConv?.lastMessage?.sender.id
+        ? selectedConv.lastMessage.sender.name
+        : "Unknown"
+    : ""
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!messageText.trim() || !selectedConvId) return
+    setSending(true)
+    try {
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationId: selectedConvId,
+          content: messageText.trim(),
+        }),
+      })
+      if (res.ok) {
+        setMessageText("")
+        fetchMessages(selectedConvId)
+        fetchConversations()
+      } else {
+        const data = await res.json()
+        toast.error(data.error || "Failed to send")
+      }
+    } catch {
+      toast.error("Network error")
+    } finally {
+      setSending(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="pt-20 min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   return (
     <div className="pt-20 min-h-screen">
@@ -73,44 +146,47 @@ export default function ChatPage() {
               <Input placeholder="Search conversations..." icon={<Search className="h-4 w-4" />} />
             </div>
             <div className="divide-y overflow-y-auto max-h-[500px]">
-              {conversations.map((conv) => (
-                <button
-                  key={conv.id}
-                  onClick={() => { setSelectedChat(conv); setShowMobileList(false) }}
-                  className={`flex items-start gap-3 p-4 w-full text-left hover:bg-muted/50 transition-colors ${
-                    selectedChat.id === conv.id ? "bg-muted" : ""
-                  }`}
-                >
-                  <div className="relative">
+              {conversations.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  No conversations yet
+                </div>
+              ) : (
+                conversations.map((conv) => (
+                  <button
+                    key={conv.id}
+                    onClick={() => { setSelectedConvId(conv.id); setShowMobileList(false) }}
+                    className={`flex items-start gap-3 p-4 w-full text-left hover:bg-muted/50 transition-colors ${
+                      selectedConvId === conv.id ? "bg-muted" : ""
+                    }`}
+                  >
                     <Avatar className="h-10 w-10">
                       <AvatarFallback className="bg-primary/10 text-primary">
-                        {conv.name.split(" ").map((n) => n[0]).join("")}
+                        {(conv.lastMessage?.sender.name || "U").charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    {conv.online && (
-                      <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-card bg-emerald-500" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-semibold text-sm truncate">{conv.name}</p>
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        {formatRelativeTime(conv.time)}
-                      </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-semibold text-sm truncate">{conv.lastMessage?.sender.name || "Unknown"}</p>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {formatRelativeTime(conv.updatedAt)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        {conv.lastMessage?.content || "No messages yet"}
+                      </p>
+                      {conv.propertyTitle && (
+                        <p className="text-[10px] text-muted-foreground/60 mt-0.5">{conv.propertyTitle}</p>
+                      )}
                     </div>
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">{conv.lastMessage}</p>
-                    <p className="text-[10px] text-muted-foreground/60 mt-0.5">{conv.property}</p>
-                  </div>
-                  {conv.unread > 0 && (
-                    <Badge className="h-5 min-w-5 px-1 text-[10px]">{conv.unread}</Badge>
-                  )}
-                </button>
-              ))}
+                  </button>
+                ))
+              )}
             </div>
           </div>
 
           <div className={`lg:col-span-2 flex flex-col ${showMobileList ? "hidden lg:flex" : "flex"}`}>
-            {selectedChat ? (
+            {selectedConv ? (
               <>
                 <div className="flex items-center justify-between p-4 border-b">
                   <div className="flex items-center gap-3">
@@ -119,64 +195,56 @@ export default function ChatPage() {
                     </button>
                     <Avatar className="h-9 w-9">
                       <AvatarFallback className="bg-primary/10 text-primary">
-                        {selectedChat.name.split(" ").map((n) => n[0]).join("")}
+                        {(otherParticipantName || "?").charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="font-semibold text-sm">{selectedChat.name}</p>
-                      <p className="text-xs text-muted-foreground">{selectedChat.property}</p>
+                      <p className="font-semibold text-sm">{otherParticipantName}</p>
+                      {selectedConv.propertyTitle && (
+                        <p className="text-xs text-muted-foreground">{selectedConv.propertyTitle}</p>
+                      )}
                     </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <button className="h-9 w-9 rounded-xl hover:bg-muted flex items-center justify-center">
-                      <Phone className="h-4 w-4" />
-                    </button>
-                    <button className="h-9 w-9 rounded-xl hover:bg-muted flex items-center justify-center">
-                      <Video className="h-4 w-4" />
-                    </button>
-                    <button className="h-9 w-9 rounded-xl hover:bg-muted flex items-center justify-center">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </button>
                   </div>
                 </div>
 
                 <div className="flex-1 p-4 space-y-4 overflow-y-auto max-h-[400px]">
-                  {messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`flex ${msg.senderId === "me" ? "justify-end" : "justify-start"}`}
-                    >
-                      <div
-                        className={`max-w-[75%] rounded-2xl p-3 ${
-                          msg.senderId === "me"
-                            ? "bg-primary text-primary-foreground rounded-tr-sm"
-                            : "bg-muted rounded-tl-sm"
-                        }`}
-                      >
-                        <p className="text-sm">{msg.content}</p>
-                        <p className="text-[10px] opacity-70 mt-1 text-right">
-                          {formatRelativeTime(msg.time)}
-                        </p>
-                      </div>
+                  {messages.length === 0 ? (
+                    <div className="text-center text-sm text-muted-foreground py-8">
+                      No messages yet. Start a conversation!
                     </div>
-                  ))}
+                  ) : (
+                    messages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`flex ${msg.senderId === user?.id ? "justify-end" : "justify-start"}`}
+                      >
+                        <div
+                          className={`max-w-[75%] rounded-2xl p-3 ${
+                            msg.senderId === user?.id
+                              ? "bg-primary text-primary-foreground rounded-tr-sm"
+                              : "bg-muted rounded-tl-sm"
+                          }`}
+                        >
+                          <p className="text-sm">{msg.content}</p>
+                          <p className="text-[10px] opacity-70 mt-1 text-right">
+                            {formatRelativeTime(msg.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  <div ref={messagesEndRef} />
                 </div>
 
                 <div className="p-4 border-t">
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault()
-                      setMessage("")
-                    }}
-                    className="flex gap-2"
-                  >
+                  <form onSubmit={handleSend} className="flex gap-2">
                     <Input
                       placeholder="Type a message..."
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
+                      value={messageText}
+                      onChange={(e) => setMessageText(e.target.value)}
                       className="flex-1"
                     />
-                    <Button type="submit" size="icon" className="shrink-0 rounded-xl">
+                    <Button type="submit" size="icon" className="shrink-0 rounded-xl" loading={sending}>
                       <Send className="h-4 w-4" />
                     </Button>
                   </form>

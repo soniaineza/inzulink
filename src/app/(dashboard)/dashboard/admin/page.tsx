@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -15,7 +16,7 @@ import {
   XCircle, Search, TrendingUp, DollarSign, Bell, Settings,
   Activity, MoreHorizontal, Loader2, Clock, Home, MapPin,
   Eye, Ban, Trash2, MessageCircle, AlertTriangle, Check,
-  X, Calendar,
+  X, Calendar, ChevronRight,
 } from "lucide-react"
 
 interface PendingProperty {
@@ -38,10 +39,12 @@ interface PendingProperty {
   landlordEmail?: string
   views: number
   isVerified: boolean
+  approvalStatus: string
   createdAt: string
 }
 
 export default function AdminDashboard() {
+  const router = useRouter()
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState("overview")
   const [pendingProperties, setPendingProperties] = useState<PendingProperty[]>([])
@@ -54,9 +57,9 @@ export default function AdminDashboard() {
   // Redirect if not admin
   useEffect(() => {
     if (user && user.role !== "admin") {
-      window.location.href = "/"
+      router.push("/")
     }
-  }, [user])
+  }, [user, router])
 
   const fetchData = async () => {
     setLoading(true)
@@ -291,7 +294,7 @@ export default function AdminDashboard() {
             <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">Live on platform</p>
           </Card>
           <Card className="p-5">
-            <p className="text-2xl font-bold">{allProperties.filter(p => !p.isVerified).length}</p>
+            <p className="text-2xl font-bold">{allProperties.filter(p => p.approvalStatus === "rejected").length}</p>
             <p className="text-sm text-muted-foreground mt-0.5">Rejected</p>
             <p className="text-xs text-destructive mt-1">Properties needing changes</p>
           </Card>
@@ -455,8 +458,10 @@ export default function AdminDashboard() {
                         </td>
                         <td className="py-3 text-sm">{p.landlord}</td>
                         <td className="py-3">
-                          {p.isVerified ? (
+                          {p.approvalStatus === "approved" ? (
                             <Badge variant="success" className="gap-1"><Check className="h-3 w-3" /> Approved</Badge>
+                          ) : p.approvalStatus === "rejected" ? (
+                            <Badge variant="destructive" className="gap-1"><X className="h-3 w-3" /> Rejected</Badge>
                           ) : (
                             <Badge variant="warning" className="gap-1"><Clock className="h-3 w-3" /> Pending</Badge>
                           )}
@@ -465,7 +470,7 @@ export default function AdminDashboard() {
                         <td className="py-3 text-muted-foreground">{p.views || 0}</td>
                         <td className="py-3">
                           <div className="flex gap-1">
-                            {!p.isVerified && (
+                            {p.approvalStatus === "pending" ? (
                               <>
                                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-emerald-500"
                                   onClick={() => handleApprove(p.id)} loading={reviewingId === p.id}>
@@ -476,6 +481,11 @@ export default function AdminDashboard() {
                                   <XCircle className="h-4 w-4" />
                                 </Button>
                               </>
+                            ) : (
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0"
+                                onClick={() => { setReviewModal(p); setRejectionReason("") }}>
+                                <Eye className="h-4 w-4" />
+                              </Button>
                             )}
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0"
                               onClick={() => window.open(`/property/${p.id}`, "_blank")}>
@@ -496,10 +506,4 @@ export default function AdminDashboard() {
   )
 }
 
-function ChevronRight(props: any) {
-  return (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="m9 18 6-6-6-6" />
-    </svg>
-  )
-}
+

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -10,8 +10,10 @@ import { Card } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { PropertyCard } from "@/components/property/property-card"
 import { DetailSkeleton } from "@/components/ui/skeleton"
-import { formatPrice } from "@/lib/utils"
+import { formatPrice, formatRelativeTime } from "@/lib/utils"
 import { useFavoritesStore } from "@/store/use-favorites"
+import { useAuth } from "@/providers/auth-provider"
+import { toast } from "sonner"
 import {
   ChevronLeft,
   Heart,
@@ -37,6 +39,10 @@ import {
   Maximize2,
   Sparkles,
   CheckCircle,
+  X,
+  Loader2,
+  Clock,
+  Quote,
 } from "lucide-react"
 
 const amenityIcons: Record<string, React.ElementType> = {
@@ -50,12 +56,17 @@ const amenityIcons: Record<string, React.ElementType> = {
 
 export default function PropertyDetailPage() {
   const params = useParams()
+  const router = useRouter()
   const { favorites, toggleFavorite } = useFavoritesStore()
+  const { user } = useAuth()
   const [property, setProperty] = useState<any>(null)
   const [similar, setSimilar] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedImage, setSelectedImage] = useState(0)
   const [showAllImages, setShowAllImages] = useState(false)
+  const [messaging, setMessaging] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
+  const [showQRModal, setShowQRModal] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -71,6 +82,81 @@ export default function PropertyDetailPage() {
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [params.id])
+
+  const handleMessage = async () => {
+    if (!user) {
+      router.push("/login")
+      return
+    }
+    setMessaging(true)
+    try {
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          receiverId: property.landlordId,
+          propertyId: params.id,
+          content: `Hi, I'm interested in "${property.title}". Is it still available?`,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success("Message sent!")
+        router.push("/chat")
+      } else {
+        toast.error(data.error || "Failed to send message")
+      }
+    } catch {
+      toast.error("Network error")
+    } finally {
+      setMessaging(false)
+    }
+  }
+
+  const handleSchedule = async () => {
+    if (!user) {
+      router.push("/login")
+      return
+    }
+    try {
+      const res = await fetch("/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          propertyId: params.id,
+          date: new Date().toISOString(),
+          time: "To be confirmed",
+          message: `I'd like to schedule a viewing for "${property.title}".`,
+        }),
+      })
+      if (res.ok) {
+        toast.success("Viewing request sent! The landlord will contact you.")
+      } else {
+        const data = await res.json()
+        toast.error(data.error || "Failed to schedule viewing")
+      }
+    } catch {
+      toast.error("Network error")
+    }
+  }
+
+  const handleShare = async () => {
+    const url = window.location.href
+    if (navigator.share) {
+      await navigator.share({ title: property.title, url })
+    } else {
+      await navigator.clipboard.writeText(url)
+      toast.success("Link copied to clipboard!")
+    }
+  }
+
+  const handlePrint = () => {
+    window.print()
+  }
+
+  const handleQR = () => {
+    setShowQRModal(true)
+  }
 
   if (loading) {
     return (
@@ -102,6 +188,53 @@ export default function PropertyDetailPage() {
 
   return (
     <div className="pt-20 min-h-screen">
+      {/* Image Gallery Modal */}
+      {showAllImages && (
+        <>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50" onClick={() => setShowAllImages(false)} />
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            className="fixed inset-4 sm:inset-8 z-50 flex flex-col rounded-2xl bg-card overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="font-semibold">{property.title} - Gallery</h2>
+              <button onClick={() => setShowAllImages(false)} className="h-9 w-9 rounded-xl hover:bg-muted flex items-center justify-center">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {images.map((img, i) => (
+                  <div key={i} className="rounded-xl overflow-hidden aspect-[4/3]">
+                    <img src={img} alt="" className="h-full w-full object-cover" loading="lazy" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        </>
+      )}
+
+      {/* QR Modal */}
+      {showQRModal && (
+        <>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" onClick={() => setShowQRModal(false)} />
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            className="fixed inset-4 sm:inset-auto sm:top-1/2 sm:-translate-y-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:w-80 z-50 rounded-2xl bg-card p-6 shadow-2xl text-center">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold">QR Code</h3>
+              <button onClick={() => setShowQRModal(false)} className="h-8 w-8 rounded-xl hover:bg-muted flex items-center justify-center">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="bg-muted rounded-xl p-6 mb-4 flex items-center justify-center">
+              <QrCode className="h-40 w-40 text-foreground" />
+            </div>
+            <p className="text-xs text-muted-foreground">Scan to view this property</p>
+          </motion.div>
+        </>
+      )}
+
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -180,7 +313,7 @@ export default function PropertyDetailPage() {
                   >
                     <Heart className={`h-5 w-5 ${isFav ? "fill-red-500 text-red-500" : ""}`} />
                   </button>
-                  <button className="h-10 w-10 rounded-xl border flex items-center justify-center hover:bg-muted transition-colors">
+                  <button onClick={handleShare} className="h-10 w-10 rounded-xl border flex items-center justify-center hover:bg-muted transition-colors">
                     <Share2 className="h-5 w-5" />
                   </button>
                 </div>
@@ -243,6 +376,36 @@ export default function PropertyDetailPage() {
                   {property.description as string}
                 </p>
               </div>
+
+              <Separator />
+
+              <div>
+                <h2 className="font-semibold text-lg mb-4">
+                  Reviews ({property.reviews?.length || 0})
+                </h2>
+                {(property.reviews?.length > 0 ? property.reviews : []).map((review: any) => (
+                  <div key={review.id} className="p-4 rounded-xl bg-muted/30 mb-3">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white font-bold text-xs">
+                        {((review.user?.name as string) || "U")?.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{review.user?.name || "Anonymous"}</p>
+                        <p className="text-xs text-muted-foreground">{formatRelativeTime(review.createdAt)}</p>
+                      </div>
+                      <div className="ml-auto flex">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star key={i} className={`h-3.5 w-3.5 ${i < review.rating ? "fill-amber-400 text-amber-400" : "text-muted"}`} />
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{review.content}</p>
+                  </div>
+                ))}
+                {(!property.reviews || property.reviews.length === 0) && (
+                  <p className="text-sm text-muted-foreground">No reviews yet for this property.</p>
+                )}
+              </div>
             </motion.div>
           </div>
 
@@ -265,11 +428,11 @@ export default function PropertyDetailPage() {
                 </div>
 
                 <div className="space-y-3">
-                  <Button className="w-full gap-2 rounded-xl" size="lg">
+                  <Button className="w-full gap-2 rounded-xl" size="lg" onClick={handleMessage} loading={messaging}>
                     <MessageCircle className="h-4 w-4" />
                     Message Landlord
                   </Button>
-                  <Button variant="outline" className="w-full gap-2 rounded-xl" size="lg">
+                  <Button variant="outline" className="w-full gap-2 rounded-xl" size="lg" onClick={handleSchedule}>
                     <Calendar className="h-4 w-4" />
                     Schedule Viewing
                   </Button>
@@ -311,11 +474,11 @@ export default function PropertyDetailPage() {
                   Share Property
                 </h3>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1 gap-1.5">
+                  <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={handlePrint}>
                     <Printer className="h-3.5 w-3.5" />
                     Print
                   </Button>
-                  <Button variant="outline" size="sm" className="flex-1 gap-1.5">
+                  <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={handleQR}>
                     <QrCode className="h-3.5 w-3.5" />
                     QR Code
                   </Button>

@@ -49,8 +49,8 @@ export async function GET(request: Request) {
         isAvailable: f.property.status === "AVAILABLE",
         isFeatured: f.property.featured,
         isVerified: f.property.verified,
-        hasParking: f.property.amenities.includes("parking"),
-        hasInternet: f.property.amenities.includes("wifi"),
+        hasParking: (f.property.amenities || []).includes("parking"),
+        hasInternet: (f.property.amenities || []).includes("wifi"),
         landlord: f.property.landlord?.name || "Landlord",
         aiScore: f.property.aiScore || 0,
         createdAt: f.createdAt.toISOString(),
@@ -75,6 +75,14 @@ export async function POST(request: Request) {
 
     if (!propertyId) {
       return NextResponse.json({ error: "propertyId is required" }, { status: 400 })
+    }
+
+    const propertyExists = await prisma.property.findUnique({
+      where: { id: propertyId },
+      select: { id: true },
+    })
+    if (!propertyExists) {
+      return NextResponse.json({ error: "Property not found" }, { status: 404 })
     }
 
     const existing = await prisma.favorite.findUnique({
@@ -108,9 +116,13 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "propertyId is required" }, { status: 400 })
     }
 
-    await prisma.favorite.deleteMany({
+    const deleted = await prisma.favorite.deleteMany({
       where: { userId, propertyId },
     })
+
+    if (deleted.count === 0) {
+      return NextResponse.json({ error: "Favorite not found" }, { status: 404 })
+    }
 
     return NextResponse.json({ success: true, propertyId })
   } catch {

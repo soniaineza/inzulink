@@ -18,6 +18,8 @@ import {
   Grid3X3,
   List,
   SearchX,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import { useLocale } from "@/providers/locale-provider"
 
@@ -31,6 +33,8 @@ function SearchPageInner() {
   const [loading, setLoading] = useState(true)
   const [properties, setProperties] = useState<any[]>([])
   const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [filters, setFilters] = useState({
@@ -74,9 +78,10 @@ function SearchPageInner() {
     if (filters.sector) params.set("sector", filters.sector)
     if (filters.furnished) params.set("furnished", "true")
     if (filters.sort && filters.sort !== "newest") params.set("sort", filters.sort)
-    filters.amenities.forEach((a) => params.append("amenity", a))
+    if (filters.amenities.length > 0) params.set("amenities", filters.amenities.join(","))
+    if (page > 1) params.set("page", String(page))
     return params.toString()
-  }, [query, filters])
+  }, [query, filters, page])
 
   const fetchProperties = useCallback(async (q: string) => {
     setLoading(true)
@@ -86,10 +91,12 @@ function SearchPageInner() {
       if (data.data) {
         setProperties(data.data)
         setTotal(data.pagination?.total ?? data.data.length)
+        setTotalPages(data.pagination?.totalPages ?? 1)
       }
     } catch {
       setProperties([])
       setTotal(0)
+      setTotalPages(1)
     } finally {
       setLoading(false)
     }
@@ -97,10 +104,16 @@ function SearchPageInner() {
 
   useEffect(() => {
     const qs = buildQueryString()
+    const newUrl = qs ? `/search?${qs}` : "/search"
+    router.replace(newUrl, { scroll: false })
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => fetchProperties(qs), 300)
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
-  }, [buildQueryString, fetchProperties])
+  }, [buildQueryString, fetchProperties, router])
+
+  useEffect(() => {
+    setPage(1)
+  }, [query, filters])
 
   const clearFilters = () => {
     setFilters({
@@ -314,7 +327,7 @@ function SearchPageInner() {
                 >
                   <div
                     className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
-                      filters.furnished ? "translate-x-5.5" : "translate-x-0.5"
+                      filters.furnished ? "translate-x-5" : "translate-x-0.5"
                     }`}
                   />
                 </button>
@@ -442,6 +455,62 @@ function SearchPageInner() {
                 <p className="text-sm text-muted-foreground mb-4">
                   {t("search.showing")} {total} {t("search.subtitle")}
                 </p>
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                      className="gap-1"
+                    >
+                      <ChevronLeft className="h-4 w-4" /> Previous
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {(() => {
+                        const maxVisible = 5
+                        const pages: (number | "...")[] = []
+                        if (totalPages <= maxVisible + 2) {
+                          for (let i = 1; i <= totalPages; i++) pages.push(i)
+                        } else {
+                          pages.push(1)
+                          const start = Math.max(2, page - 1)
+                          const end = Math.min(totalPages - 1, page + 1)
+                          if (start > 2) pages.push("...")
+                          for (let i = start; i <= end; i++) pages.push(i)
+                          if (end < totalPages - 1) pages.push("...")
+                          pages.push(totalPages)
+                        }
+                        return pages.map((p, i) =>
+                          p === "..." ? (
+                            <span key={`ellipsis-${i}`} className="px-1 text-muted-foreground">...</span>
+                          ) : (
+                            <button
+                              key={p}
+                              onClick={() => setPage(p)}
+                              className={`h-9 w-9 rounded-xl text-sm font-medium transition-all ${
+                                page === p
+                                  ? "bg-primary text-primary-foreground shadow-sm"
+                                  : "text-muted-foreground hover:bg-muted"
+                              }`}
+                            >
+                              {p}
+                            </button>
+                          )
+                        )
+                      })()}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      disabled={page >= totalPages}
+                      className="gap-1"
+                    >
+                      Next <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>

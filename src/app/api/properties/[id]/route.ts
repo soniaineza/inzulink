@@ -37,11 +37,11 @@ export async function GET(
       return NextResponse.json({ error: "Property not found" }, { status: 404 })
     }
 
-    // Increment view count
-    await prisma.property.update({
+    // Increment view count (non-critical, don't break the response on failure)
+    prisma.property.update({
       where: { id },
       data: { views: { increment: 1 } },
-    })
+    }).catch(() => {})
 
     const avgRating =
       property.reviews.length > 0

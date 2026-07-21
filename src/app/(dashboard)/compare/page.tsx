@@ -1,18 +1,45 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Loader2 } from "lucide-react"
 import { useCompareStore } from "@/store/use-compare"
-import { FEATURED_PROPERTIES, AMENITIES } from "@/lib/constants"
 import { formatPrice } from "@/lib/utils"
 import { BarChart3, X, Search, Bed, Bath, Move, Check, Minus } from "lucide-react"
 
 export default function ComparePage() {
   const { compare, toggleCompare, clearCompare } = useCompareStore()
-  const compareProperties = FEATURED_PROPERTIES.filter((p) => compare.includes(p.id))
+  const [properties, setProperties] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (compare.length === 0) {
+      setProperties([])
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    fetch(`/api/properties?limit=20`)
+      .then((r) => r.json())
+      .then((data) => {
+        const fetched = (data.data || []).filter((p: any) => compare.includes(p.id))
+        setProperties(fetched)
+      })
+      .catch(() => setProperties([]))
+      .finally(() => setLoading(false))
+  }, [compare])
+
+  if (loading) {
+    return (
+      <div className="pt-20 min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   return (
     <div className="pt-20 min-h-screen">
@@ -31,19 +58,19 @@ export default function ComparePage() {
               Compare up to 4 properties side by side
             </p>
           </div>
-          {compareProperties.length > 0 && (
+          {properties.length > 0 && (
             <Button variant="ghost" size="sm" onClick={clearCompare}>
               Clear All
             </Button>
           )}
         </motion.div>
 
-        {compareProperties.length > 0 ? (
+        {properties.length > 0 ? (
           <div className="overflow-x-auto">
             <div className="min-w-[600px]">
               <div className="grid grid-cols-[200px_repeat(auto-fill,minmax(200px,1fr))] gap-px bg-border rounded-2xl overflow-hidden">
                 <div className="bg-card p-4" />
-                {compareProperties.map((property) => (
+                {properties.map((property: any) => (
                   <div key={property.id} className="bg-card p-4 relative">
                     <button
                       onClick={() => toggleCompare(property.id)}
@@ -52,44 +79,48 @@ export default function ComparePage() {
                       <X className="h-3.5 w-3.5" />
                     </button>
                     <img
-                      src={property.image}
+                      src={property.image || "/placeholder.svg"}
                       alt={property.title}
                       className="w-full aspect-[4/3] object-cover rounded-xl mb-3"
                     />
                     <h3 className="font-semibold text-sm mb-1">{property.title}</h3>
                     <p className="text-lg font-bold text-primary">
-                      {formatPrice(property.price)}
+                      {formatPrice(property.price ?? 0)}
                       <span className="text-xs font-normal text-muted-foreground">/mo</span>
                     </p>
                   </div>
                 ))}
 
                 {[
-                  { label: "Type", values: compareProperties.map((p) => p.type) },
-                  { label: "Bedrooms", values: compareProperties.map((p) => `${p.bedrooms}`) },
-                  { label: "Bathrooms", values: compareProperties.map((p) => `${p.bathrooms}`) },
-                  { label: "Area", values: compareProperties.map((p) => `${p.area} m²`) },
-                  { label: "Furnished", values: compareProperties.map((p) => (p.bedrooms > 2 ? "Yes" : "No")) },
-                  { label: "Parking", values: compareProperties.map((p) => (p.bedrooms > 2 ? "Yes" : "No")) },
-                  { label: "WiFi", values: compareProperties.map((p) => "Yes") },
-                  { label: "Water", values: compareProperties.map((p) => "Yes") },
-                  { label: "Electricity", values: compareProperties.map((p) => "Yes") },
+                  { label: "Type", key: "type" },
+                  { label: "Bedrooms", key: "bedrooms" },
+                  { label: "Bathrooms", key: "bathrooms" },
+                  { label: "Area", key: "area" },
+                  { label: "Furnished", key: "furnished" },
+                  { label: "Parking", key: "hasParking" },
+                  { label: "WiFi", key: "hasInternet" },
                 ].map((row) => (
                   <div key={row.label} className="contents">
                     <div className="bg-card p-4 flex items-center text-sm font-medium">
                       {row.label}
                     </div>
-                    {row.values.map((value, i) => (
-                      <div key={i} className="bg-card p-4 flex items-center justify-center text-sm">
-                        {value === "Yes" ? (
-                          <Check className="h-5 w-5 text-emerald-500" />
-                        ) : value === "No" ? (
-                          <Minus className="h-5 w-5 text-muted-foreground" />
-                        ) : (
-                          value
-                        )}
-                      </div>
-                    ))}
+                    {properties.map((p: any) => {
+                      const val = p[row.key]
+                      const display = typeof val === "boolean"
+                        ? val ? "Yes" : "No"
+                        : String(val ?? "-")
+                      return (
+                        <div key={p.id} className="bg-card p-4 flex items-center justify-center text-sm">
+                          {display === "Yes" ? (
+                            <Check className="h-5 w-5 text-emerald-500" />
+                          ) : display === "No" ? (
+                            <Minus className="h-5 w-5 text-muted-foreground" />
+                          ) : (
+                            display
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 ))}
               </div>

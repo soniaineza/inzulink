@@ -33,7 +33,10 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const action = body.action as string
+    if (typeof body.action !== "string") {
+      return NextResponse.json({ error: "action must be a string" }, { status: 400 })
+    }
+    const action = body.action
 
     if (action === "approve") {
       const updated = await prisma.property.update({
@@ -56,7 +59,7 @@ export async function PATCH(
             link: `/property/${id}`,
           },
         })
-      } catch {}
+      } catch (e) { console.error("Failed to create notification:", e) }
 
       return NextResponse.json({
         success: true,
@@ -64,7 +67,9 @@ export async function PATCH(
         message: "Property approved successfully. It is now visible to tenants.",
       })
     } else if (action === "reject") {
-      const reason = body.reason as string || "Does not meet our quality standards."
+      const reason = typeof body.reason === "string" && body.reason.trim()
+        ? body.reason.trim()
+        : "Does not meet our quality standards."
 
       const updated = await prisma.property.update({
         where: { id },
@@ -86,7 +91,7 @@ export async function PATCH(
             link: `/property/${id}`,
           },
         })
-      } catch {}
+      } catch (e) { console.error("Failed to create notification:", e) }
 
       return NextResponse.json({
         success: true,

@@ -62,6 +62,8 @@ model User {
   savedSearches SavedSearch[]
   sentMessages  Message[]     @relation("SenderMessages")
   sentBookings  Booking[]     @relation("TenantBookings")
+  resetToken    String?
+  resetTokenExpiry DateTime?
 
   @@map("users")
 }
@@ -86,10 +88,10 @@ model Property {
   street          String?
   latitude        Float?
   longitude       Float?
-  images          String[]
+  images          String[] @default([])
   video           String?
   virtualTour     String?
-  amenities       String[]
+  amenities       String[] @default([])
   availableFrom   DateTime       @default(now())
   featured        Boolean        @default(false)
   verified        Boolean        @default(false)
@@ -153,7 +155,7 @@ model Booking {
 model Conversation {
   id           String    @id @default(cuid())
   propertyId   String?
-  participants String[]
+  participants String[] @default([])
   lastMessage  String?
   lastMessageAt DateTime?
   createdAt    DateTime  @default(now())

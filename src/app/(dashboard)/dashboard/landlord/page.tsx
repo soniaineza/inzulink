@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -45,7 +46,8 @@ interface PropertyItem {
 }
 
 export default function LandlordDashboard() {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState("overview")
   const [properties, setProperties] = useState<PropertyItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -82,8 +84,19 @@ export default function LandlordDashboard() {
   }
 
   useEffect(() => {
-    if (user) fetchProperties()
-  }, [user])
+    if (authLoading) return
+    if (!user) {
+      setLoading(false)
+      router.push("/login")
+      return
+    }
+    if (user.role !== "landlord" && user.role !== "admin") {
+      setLoading(false)
+      router.push("/")
+      return
+    }
+    fetchProperties()
+  }, [user, authLoading, router])
 
   // Stats
   const totalViews = properties.reduce((sum, p) => sum + (p.views || 0), 0)
@@ -349,7 +362,8 @@ export default function LandlordDashboard() {
                       <label className="text-sm font-medium mb-2 block">Features</label>
                       <div className="flex flex-wrap gap-2">
                         {["Furnished", "Pets Allowed", "Family Friendly", "Student Friendly"].map((label) => {
-                          const key = label.toLowerCase().replace(/\s+/g, "") as keyof typeof form
+                          const keyMap: Record<string, string> = { "Furnished": "furnished", "Pets Allowed": "petsAllowed", "Family Friendly": "familyFriendly", "Student Friendly": "studentFriendly" }
+                          const key = keyMap[label] as keyof typeof form
                           return (
                             <button key={label} type="button" onClick={() => updateForm(key, !(form as any)[key])}
                               className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm border transition-all ${

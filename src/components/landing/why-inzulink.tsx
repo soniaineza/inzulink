@@ -31,7 +31,7 @@ export function WhyInzuLink() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.3, delay: index * 0.05 }}
-                className="p-5 rounded-xl bg-card border shadow-card hover:shadow-card-hover transition-shadow"
+                className="p-6 rounded-2xl bg-card border border-border/50 shadow-sm hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 hover:border-primary/20 transition-all duration-500"
               >
                 <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
                   <Icon className="h-4 w-4 text-primary" />

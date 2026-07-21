@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
@@ -8,24 +8,51 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/providers/auth-provider"
-import { Home, Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react"
+import { Home, Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle } from "lucide-react"
 import { useLocale } from "@/providers/locale-provider"
+import { z } from "zod"
+import { toast } from "sonner"
+
+const loginSchema = z.object({
+  email: z.string().email("Valid email is required"),
+  password: z.string().min(1, "Password is required"),
+})
 
 export default function LoginPage() {
   const { t } = useLocale()
   const router = useRouter()
-  const { login } = useAuth()
+  const { login, user, loading: authLoading } = useAuth()
+
+  useEffect(() => {
+    if (!authLoading && user) router.push("/")
+  }, [user, authLoading, router])
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setErrors({})
+    const result = loginSchema.safeParse({ email, password })
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {}
+      for (const err of result.error.issues) {
+        fieldErrors[err.path[0] as string] = err.message
+      }
+      setErrors(fieldErrors)
+      return
+    }
     setLoading(true)
-    await login({ email, password })
-    setLoading(false)
-    router.push("/")
+    try {
+      await login({ email, password })
+      router.push("/")
+    } catch {
+      toast.error("Invalid email or password")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -56,7 +83,9 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 icon={<Mail className="h-4 w-4" />}
                 required
+                className={errors.email ? "border-destructive" : ""}
               />
+              {errors.email && <p className="text-xs text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" />{errors.email}</p>}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">{t("auth.password")}</label>
@@ -68,7 +97,9 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   icon={<Lock className="h-4 w-4" />}
                   required
+                  className={errors.password ? "border-destructive" : ""}
                 />
+                {errors.password && <p className="text-xs text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" />{errors.password}</p>}
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}

@@ -1,3 +1,5 @@
+"use client"
+
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
@@ -5,10 +7,13 @@ import { motion } from "framer-motion"
 type CardProps = React.HTMLAttributes<HTMLDivElement> & {
   hover?: boolean
   tilt?: boolean
+  isGlass?: boolean
 }
 
 const Card = React.forwardRef<HTMLDivElement, CardProps>(
-  ({ className, hover = true, tilt = false, children, ...props }, ref) => {
+  ({ className, hover = true, tilt = false, isGlass, children, ...props }, ref) => {
+    const [mousePos, setMousePos] = React.useState({ x: 0, y: 0 })
+    const [isHovered, setIsHovered] = React.useState(false)
     const [rotateX, setRotateX] = React.useState(0)
     const [rotateY, setRotateY] = React.useState(0)
     const cardRef = React.useRef<HTMLDivElement>(null)
@@ -30,10 +35,18 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
       setRotateY(0)
     }
 
+    const glassClasses = isGlass ? "glass-card backdrop-blur-xl" : ""
     const style = tilt ? {
       transform: `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`,
       transition: 'transform 0.1s ease-out',
     } as React.CSSProperties : {}
+
+    const baseClasses = cn(
+      "group relative rounded-2xl border bg-card text-card-foreground shadow-sm transition-all duration-500",
+      glassClasses,
+      hover && "hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 hover:border-primary/20",
+      className
+    )
 
     if (hover && !tilt) {
       return (
@@ -44,11 +57,19 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
           viewport={{ once: true, margin: "-50px" }}
           transition={{ duration: 0.4, ease: "easeOut" }}
           whileHover={{ y: -4 }}
-          className={cn(
-            "group rounded-2xl border bg-card text-card-foreground shadow-sm transition-all duration-300 hover:shadow-xl hover:shadow-primary/5 hover:border-primary/20",
-            className
-          )}
+          className={baseClasses}
+          onMouseMove={(e) => { const r = (e.target as HTMLDivElement).getBoundingClientRect(); setMousePos({ x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height }); setIsHovered(true) }}
+          onMouseLeave={() => setIsHovered(false)}
         >
+          {isHovered && (
+            <div className="pointer-events-none absolute inset-0 rounded-2xl overflow-hidden">
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700"
+                style={{
+                  background: `radial-gradient(600px circle at ${mousePos.x * 100}% ${mousePos.y * 100}%, hsl(var(--primary) / 0.06), transparent 40%)`,
+                }}
+              />
+            </div>
+          )}
           {children}
         </motion.div>
       )
@@ -65,10 +86,7 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
           style={style}
-          className={cn(
-            "rounded-2xl border bg-card text-card-foreground shadow-sm transition-all duration-300 hover:shadow-xl hover:shadow-primary/5 hover:border-primary/20",
-            className
-          )}
+          className={baseClasses}
         >
           {children}
         </motion.div>
@@ -76,14 +94,7 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
     }
 
     return (
-      <div
-        ref={ref}
-        className={cn(
-          "rounded-2xl border bg-card text-card-foreground shadow-sm",
-          className
-        )}
-        {...props}
-      >
+      <div ref={ref} className={baseClasses} {...props}>
         {children}
       </div>
     )

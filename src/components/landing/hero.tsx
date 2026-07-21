@@ -35,7 +35,10 @@ export function Hero() {
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }} className="mt-6">
-            <div className="bg-white rounded-xl shadow-2xl p-1.5 flex items-center max-w-xl">
+            <form
+              onSubmit={(e) => { e.preventDefault(); router.push(query ? `/search?q=${encodeURIComponent(query)}` : "/search") }}
+              className="bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl p-1.5 flex items-center max-w-xl"
+            >
               <div className="flex items-center px-3 text-muted-foreground/40">
                 <Search className="h-5 w-5" />
               </div>
@@ -45,10 +48,8 @@ export function Hero() {
                 onChange={(e) => setQuery(e.target.value)}
                 className="flex-1 h-11 bg-transparent text-foreground text-sm placeholder:text-muted-foreground/40 focus:outline-none"
               />
-              <Link href={query ? `/search?q=${encodeURIComponent(query)}` : "/search"}>
-                <Button className="h-9 px-5 rounded-lg text-sm font-medium">{t("hero.search")}</Button>
-              </Link>
-            </div>
+              <Button type="submit" className="h-9 px-5 rounded-lg text-sm font-medium">{t("hero.search")}</Button>
+            </form>
             <div className="flex items-center gap-2 mt-3 flex-wrap">
               <div className="flex items-center gap-1 text-white/50 text-xs mr-1">
                 <MapPin className="h-3.5 w-3.5" />

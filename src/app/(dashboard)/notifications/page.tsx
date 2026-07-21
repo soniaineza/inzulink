@@ -1,10 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import Link from "next/link"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatRelativeTime } from "@/lib/utils"
+import { useAuth } from "@/providers/auth-provider"
+import { toast } from "sonner"
 import {
   Bell,
   MessageCircle,
@@ -14,71 +17,86 @@ import {
   Trash2,
   Heart,
   Building2,
+  Loader2,
 } from "lucide-react"
 
-const initialNotifications = [
-  {
-    id: "1",
-    title: "New Message",
-    message: "Jean-Pierre responded to your inquiry about the Modern 2-Bedroom in Kimironko",
-    type: "message",
-    read: false,
-    time: new Date(Date.now() - 1000 * 60 * 10),
-    icon: MessageCircle,
-    color: "from-blue-500 to-indigo-500",
-  },
-  {
-    id: "2",
-    title: "Viewing Confirmed",
-    message: "Your viewing for Cozy Studio Near Kacyiru is confirmed for Saturday at 2pm",
-    type: "booking",
-    read: false,
-    time: new Date(Date.now() - 1000 * 60 * 60),
-    icon: Calendar,
-    color: "from-emerald-500 to-teal-500",
-  },
-  {
-    id: "3",
-    title: "Price Drop Alert",
-    message: "Modern 2-Bedroom in Kimironko dropped from 380,000 to 350,000 RWF",
-    type: "alert",
-    read: true,
-    time: new Date(Date.now() - 1000 * 60 * 60 * 3),
-    icon: Heart,
-    color: "from-rose-500 to-pink-500",
-  },
-  {
-    id: "4",
-    title: "Property Verified",
-    message: "Your property 'Spacious 4-Bedroom in Remera' has been verified successfully",
-    type: "system",
-    read: true,
-    time: new Date(Date.now() - 1000 * 60 * 60 * 24),
-    icon: Building2,
-    color: "from-amber-500 to-orange-500",
-  },
-  {
-    id: "5",
-    title: "New Review",
-    message: "A tenant left a 5-star review for your property in Nyarutarama",
-    type: "system",
-    read: true,
-    time: new Date(Date.now() - 1000 * 60 * 60 * 48),
-    icon: MessageCircle,
-    color: "from-violet-500 to-purple-500",
-  },
-]
+const iconMap: Record<string, React.ElementType> = {
+  message: MessageCircle,
+  booking: Calendar,
+  alert: AlertTriangle,
+  system: Building2,
+}
+
+const colorMap: Record<string, string> = {
+  message: "from-blue-500 to-indigo-500",
+  booking: "from-emerald-500 to-teal-500",
+  alert: "from-rose-500 to-pink-500",
+  system: "from-amber-500 to-orange-500",
+}
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState(initialNotifications)
-  const unread = notifications.filter((n) => !n.read).length
+  const { user } = useAuth()
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const markAllRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, read: true })))
+  const fetchNotifications = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch("/api/notifications")
+      const data = await res.json()
+      setNotifications(data.data || [])
+    } catch {
+      setNotifications([])
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const clearAll = () => {
-    setNotifications([])
+  useEffect(() => {
+    if (user) fetchNotifications()
+    else setLoading(false)
+  }, [user])
+
+  const unread = notifications.filter((n: any) => !n.read).length
+
+  const markAllRead = async () => {
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ readAll: true }),
+      })
+      if (res.ok) {
+        setNotifications(notifications.map((n: any) => ({ ...n, read: true })))
+        toast.success("All marked as read")
+      }
+    } catch {
+      toast.error("Failed to mark as read")
+    }
+  }
+
+  const clearAll = async () => {
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clearAll: true }),
+      })
+      if (res.ok) {
+        setNotifications([])
+        toast.success("All notifications cleared")
+      }
+    } catch {
+      toast.error("Failed to clear notifications")
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="pt-20 min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   return (
@@ -116,35 +134,40 @@ export default function NotificationsPage() {
 
         {notifications.length > 0 ? (
           <div className="space-y-2">
-            {notifications.map((notification, index) => {
-              const Icon = notification.icon
+            {notifications.map((notification: any, index: number) => {
+              const Icon = iconMap[notification.type] || Bell
+              const color = colorMap[notification.type] || "from-gray-500 to-gray-600"
               return (
                 <motion.div
                   key={notification.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.03 }}
-                  className={`flex items-start gap-4 p-4 rounded-2xl transition-all ${
-                    !notification.read
-                      ? "bg-primary/5 border border-primary/10"
-                      : "bg-card border border-transparent hover:bg-muted/50"
-                  }`}
                 >
-                  <div className={`h-10 w-10 rounded-2xl bg-gradient-to-br ${notification.color} flex items-center justify-center shrink-0 shadow-lg`}>
-                    <Icon className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-semibold text-sm">{notification.title}</p>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {!notification.read && <div className="h-2 w-2 rounded-full bg-primary" />}
-                        <span className="text-xs text-muted-foreground">
-                          {formatRelativeTime(notification.time)}
-                        </span>
-                      </div>
+                  <Link
+                    href={notification.link || "#"}
+                    className={`flex items-start gap-4 p-4 rounded-2xl transition-all block ${
+                      !notification.read
+                        ? "bg-primary/5 border border-primary/10"
+                        : "bg-card border border-transparent hover:bg-muted/50"
+                    }`}
+                  >
+                    <div className={`h-10 w-10 rounded-2xl bg-gradient-to-br ${color} flex items-center justify-center shrink-0 shadow-lg`}>
+                      <Icon className="h-5 w-5 text-white" />
                     </div>
-                    <p className="text-sm text-muted-foreground mt-0.5">{notification.message}</p>
-                  </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-semibold text-sm">{notification.title}</p>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {!notification.read && <div className="h-2 w-2 rounded-full bg-primary" />}
+                          <span className="text-xs text-muted-foreground">
+                            {formatRelativeTime(notification.time)}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-0.5">{notification.message}</p>
+                    </div>
+                  </Link>
                 </motion.div>
               )
             })}

@@ -14,6 +14,8 @@ export const SITE_CONFIG = {
     phone: "+250 788 000 000",
     address: "KG 220 St, Kigali, Rwanda",
   },
+  appStoreUrl: "https://apps.apple.com/app/inzulink",
+  googlePlayUrl: "https://play.google.com/store/apps/details?id=com.inzulink.app",
 } as const
 
 export const LOCATIONS = [

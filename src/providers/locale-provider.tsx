@@ -23,11 +23,10 @@ function getInitialLocale(): Locale {
 }
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(defaultLocale)
+  const [locale, setLocaleState] = useState<Locale>(getInitialLocale)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    setLocaleState(getInitialLocale())
     setMounted(true)
   }, [])
 

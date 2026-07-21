@@ -1,3 +1,4 @@
+import "dotenv/config"
 import { PrismaClient } from "@prisma/client"
 import { PrismaPg } from "@prisma/adapter-pg"
 import bcrypt from "bcryptjs"
@@ -343,24 +344,50 @@ const testimonials = [
 async function main() {
   console.log("Seeding database...")
 
+  // Clean existing data in correct order (respect foreign keys)
+  await prisma.review.deleteMany()
+  await prisma.favorite.deleteMany()
+  await prisma.notification.deleteMany()
+  await prisma.message.deleteMany()
+  await prisma.conversation.deleteMany()
+  await prisma.booking.deleteMany()
+  await prisma.property.deleteMany()
+  await prisma.savedSearch.deleteMany()
+  await prisma.user.deleteMany()
+
   for (const l of landlords) {
-    await prisma.user.upsert({
-      where: { email: l.email },
-      update: {},
-      create: {
+    await prisma.user.create({
+      data: {
         email: l.email,
         name: l.name,
         phone: l.phone,
         role: l.role,
         verified: true,
+        password: await bcrypt.hash("landlord123", 12),
       },
     })
   }
   console.log(`Created ${landlords.length} users`)
 
+  // Create admin user
+  await prisma.user.create({
+    data: {
+      email: adminUser.email,
+      name: adminUser.name,
+      phone: adminUser.phone,
+      password: await bcrypt.hash(adminUser.password, 12),
+      role: adminUser.role,
+      verified: adminUser.verified,
+    },
+  })
+  console.log("Created admin user")
+
   for (const p of properties) {
     const landlord = await prisma.user.findUnique({ where: { email: p.landlordEmail } })
-    if (!landlord) continue
+    if (!landlord) {
+      console.warn(`Landlord not found for ${p.landlordEmail}, skipping property "${p.title}"`)
+      continue
+    }
 
     await prisma.property.create({
       data: {
@@ -392,30 +419,27 @@ async function main() {
   }
   console.log(`Created ${properties.length} properties`)
 
-  // Create admin user
-  await prisma.user.upsert({
-    where: { email: adminUser.email },
-    update: {},
-    create: {
-      email: adminUser.email,
-      name: adminUser.name,
-      phone: adminUser.phone,
-      password: await bcrypt.hash(adminUser.password, 12),
-      role: adminUser.role,
-      verified: adminUser.verified,
-    },
-  })
-
   const allProperties = await prisma.property.findMany({ include: { landlord: true } })
+
+  // Track which tenant+property pairs we've already reviewed to avoid duplicates
+  const usedReviewPairs = new Set<string>()
 
   for (const t of testimonials) {
     const property = allProperties.find((p) => p.title === t.propertyTitle)
     if (!property) continue
 
+    // Pick a tenant user different from the landlord and not already used for this property
     const tenant = await prisma.user.findFirst({
-      where: { email: { not: property.landlord.email } },
+      where: {
+        role: "TENANT",
+        id: { not: property.landlord.id },
+      },
     })
     if (!tenant) continue
+
+    const pairKey = `${tenant.id}-${property.id}`
+    if (usedReviewPairs.has(pairKey)) continue
+    usedReviewPairs.add(pairKey)
 
     await prisma.review.create({
       data: {
@@ -432,10 +456,10 @@ async function main() {
 }
 
 main()
-  .catch((e) => {
-    console.error("Seed error:", e)
-    process.exit(1)
-  })
   .finally(async () => {
     await prisma.$disconnect()
+  })
+  .catch((e) => {
+    console.error("Seed error:", e)
+    process.exitCode = 1
   })

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
@@ -8,23 +8,56 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/providers/auth-provider"
-import { Home, User, Mail, Lock, Eye, EyeOff, ArrowRight, Building2 } from "lucide-react"
+import { Home, User, Mail, Lock, Eye, EyeOff, ArrowRight, Building2, AlertCircle } from "lucide-react"
 import { useLocale } from "@/providers/locale-provider"
+import { z } from "zod"
+import { toast } from "sonner"
+
+const registerSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Valid email is required"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  role: z.enum(["tenant", "landlord"]),
+})
 
 export default function RegisterPage() {
   const { t } = useLocale()
   const router = useRouter()
-  const { register } = useAuth()
+  const { register, user, loading: authLoading } = useAuth()
+
+  useEffect(() => {
+    if (!authLoading && user) router.push("/")
+  }, [user, authLoading, router])
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "tenant" })
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setErrors({})
+    const result = registerSchema.safeParse(form)
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {}
+      for (const err of result.error.issues) {
+        fieldErrors[err.path[0] as string] = err.message
+      }
+      setErrors(fieldErrors)
+      return
+    }
     setLoading(true)
-    await register({ ...form, role: form.role as "tenant" | "landlord" | "admin" })
-    setLoading(false)
-    router.push("/")
+    try {
+      const result = await register({ ...form, role: form.role as "tenant" | "landlord" })
+      if (!result.success) {
+        toast.error(result.error || "Registration failed. Please try again.")
+        return
+      }
+      router.push("/")
+    } catch {
+      toast.error("Registration failed. Please try again.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -95,7 +128,9 @@ export default function RegisterPage() {
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 icon={<User className="h-4 w-4" />}
                 required
+                className={errors.name ? "border-destructive" : ""}
               />
+              {errors.name && <p className="text-xs text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" />{errors.name}</p>}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">{t("auth.email")}</label>
@@ -106,7 +141,9 @@ export default function RegisterPage() {
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 icon={<Mail className="h-4 w-4" />}
                 required
+                className={errors.email ? "border-destructive" : ""}
               />
+              {errors.email && <p className="text-xs text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" />{errors.email}</p>}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">{t("auth.password")}</label>
@@ -118,7 +155,9 @@ export default function RegisterPage() {
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                   icon={<Lock className="h-4 w-4" />}
                   required
+                  className={errors.password ? "border-destructive" : ""}
                 />
+                {errors.password && <p className="text-xs text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" />{errors.password}</p>}
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}

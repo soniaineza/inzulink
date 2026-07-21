@@ -28,6 +28,7 @@ const timeLabels: Record<string, TimeLabels> = {
   en: { justNow: "just now", m: "m ago", h: "h ago", d: "d ago" },
   rw: { justNow: "ubu", m: "m ishize", h: "h ishize", d: "d ishize" },
   fr: { justNow: "à l'instant", m: "m", h: "h", d: "j" },
+  sw: { justNow: "sasa hivi", m: "d iliyopita", h: "saa iliyopita", d: "siku iliyopita" },
 }
 
 export function formatRelativeTime(date: Date | string, locale = "en"): string {
